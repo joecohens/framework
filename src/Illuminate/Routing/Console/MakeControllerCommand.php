@@ -132,6 +132,13 @@ class MakeControllerCommand extends Command {
 
 		$except = $this->explodeOption('except');
 
+		$single = $this->input->getOption('single');
+
+		if($single)
+		{
+			array_push($except, 'index');
+		}
+
 		return compact('only', 'except');
 	}
 
@@ -176,6 +183,8 @@ class MakeControllerCommand extends Command {
 			array('except', null, InputOption::VALUE_OPTIONAL, 'The methods that should be excluded'),
 
 			array('path', null, InputOption::VALUE_OPTIONAL, 'Where to place the controller'),
+
+			array('single', null, InputOption::VALUE_NONE, 'Remove index method from stub.'),
 		);
 	}
 
