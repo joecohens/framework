@@ -554,6 +554,72 @@ class RoutingRouteTest extends PHPUnit_Framework_TestCase {
 	}
 
 
+	public function testSingleResourceRouting()
+	{
+		$router = $this->getRouter();
+		$router->singleResource('foo', 'FooController');
+		$routes = $router->getRoutes();
+		$this->assertEquals(7, count($routes));
+
+		$router = $this->getRouter();
+		$router->singleResource('foo', 'FooController', array('only' => array('show', 'destroy')));
+		$routes = $router->getRoutes();
+
+		$this->assertEquals(2, count($routes));
+
+		$router = $this->getRouter();
+		$router->singleResource('foo', 'FooController', array('except' => array('show', 'destroy')));
+		$routes = $router->getRoutes();
+
+		$this->assertEquals(5, count($routes));
+
+		$router = $this->getRouter();
+		$router->singleResource('foo-bars', 'FooController', array('only' => array('show')));
+		$routes = $router->getRoutes();
+		$routes = $routes->getRoutes();
+
+		$this->assertEquals('foo-bars', $routes[0]->getUri());
+
+		$router = $this->getRouter();
+		$router->singleResource('foo-bars.foo-bazs', 'FooController', array('only' => array('show')));
+		$routes = $router->getRoutes();
+		$routes = $routes->getRoutes();
+
+		$this->assertEquals('foo-bars.foo-bazs', $routes[0]->getUri());
+	}
+
+
+	public function testSingleResourceRouteNaming()
+	{
+		$router = $this->getRouter();
+		$router->singleResource('foo', 'FooController');
+
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.show'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.create'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.store'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.edit'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.update'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.destroy'));
+
+		$router = $this->getRouter();
+		$router->singleResource('foo.bar', 'FooController');
+
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.bar.show'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.bar.create'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.bar.store'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.bar.edit'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.bar.update'));
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('foo.bar.destroy'));
+
+		$router = $this->getRouter();
+		$router->singleResource('foo', 'FooController', array('names' => array(
+			'show' => 'bar',
+		)));
+	
+		$this->assertTrue($router->getRoutes()->hasNamedRoute('bar'));
+	}
+
+
 	protected function getRouter()
 	{
 		return new Router(new Illuminate\Events\Dispatcher);

@@ -111,6 +111,13 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	protected $resourceDefaults = array('index', 'create', 'store', 'show', 'edit', 'update', 'destroy');
 
 	/**
+	 * The default actions for a single resourceful controller.
+	 *
+	 * @var array
+	 */
+	protected $singleResourceDefaults = array('show', 'create', 'store', 'edit', 'update', 'destroy');
+
+	/**
 	 * Create a new Router instance.
 	 *
 	 * @param  \Illuminate\Events\Dispatcher  $events
@@ -307,14 +314,14 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	}
 
 	/**
-	 * Route a resource to a controller.
+	 * Register a resource to a controller.
 	 *
 	 * @param  string  $name
 	 * @param  string  $controller
-	 * @param  array   $options
+	 * @param  mixed   $default
 	 * @return void
 	 */
-	public function resource($name, $controller, array $options = array())
+	public function registerResource($name, $controller, array $options = array(), $default = false)
 	{
 		// If the resource name contains a slash, we will assume the developer wishes to
 		// register these resource routes with a prefix so we will set that up out of
@@ -329,14 +336,41 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 		// We need to extract the base resource from the resource name. Nested resources
 		// are supported in the framework, but we need to know what name to use for a
 		// place-holder on the route wildcards, which should be the base resources.
-		$base = $this->getResourceWildcard(last(explode('.', $name)));
+		$base = ($default) ? $this->getResourceWildcard(last(explode('.', $name))) : false;
 
-		$defaults = $this->resourceDefaults;
+		$defaults = ($default) ? $this->resourceDefaults : $this->singleResourceDefaults;
 
 		foreach ($this->getResourceMethods($defaults, $options) as $m)
 		{
 			$this->{'addResource'.ucfirst($m)}($name, $base, $controller, $options);
 		}
+
+	}
+
+	/**
+	 * Route a resource to a controller.
+	 *
+	 * @param  string  $name
+	 * @param  string  $controller
+	 * @param  array   $options
+	 * @return void
+	 */
+	public function resource($name, $controller, array $options = array())
+	{
+		$this->registerResource($name, $controller, $options, true);
+	}
+
+	/**
+	 * Route a single resource to a controller.
+	 *
+	 * @param  string  $name
+	 * @param  string  $controller
+	 * @param  array   $options
+	 * @return void
+	 */
+	public function singleResource($name, $controller, array $options = array())
+	{
+		$this->registerResource($name, $controller, $options);
 	}
 
 	/**
@@ -405,16 +439,17 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	 * Get the base resource URI for a given resource.
 	 *
 	 * @param  string  $resource
+	 * @param  mixed   $base
 	 * @return string
 	 */
-	public function getResourceUri($resource)
+	public function getResourceUri($resource, $base = null)
 	{
 		if ( ! str_contains($resource, '.')) return $resource;
 
 		// Once we have built the base URI, we'll remove the wildcard holder for this
 		// base resource name so that the individual route adders can suffix these
-		// paths however they need to, as some do not have any wildcards at all.
-		$segments = explode('.', $resource);
+		// paths however they need to, as some do not have any wildcards at all		
+		$segments = ($base) ? explode('.', $resource) : array($resource);
 
 		$uri = $this->getNestedResourceUri($segments);
 
@@ -512,7 +547,7 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	{
 		$action = $this->getResourceAction($name, $controller, 'index', $options);
 
-		return $this->get($this->getResourceUri($name), $action);
+		return $this->get($this->getResourceUri($name, $base), $action);
 	}
 
 	/**
@@ -528,7 +563,7 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	{
 		$action = $this->getResourceAction($name, $controller, 'create', $options);
 
-		return $this->get($this->getResourceUri($name).'/create', $action);
+		return $this->get($this->getResourceUri($name, $base).'/create', $action);
 	}
 
 	/**
@@ -544,7 +579,7 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	{
 		$action = $this->getResourceAction($name, $controller, 'store', $options);
 
-		return $this->post($this->getResourceUri($name), $action);
+		return $this->post($this->getResourceUri($name, $base), $action);
 	}
 
 	/**
@@ -558,7 +593,8 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	 */
 	protected function addResourceShow($name, $base, $controller, $options)
 	{
-		$uri = $this->getResourceUri($name).'/{'.$base.'}';
+		$param = ($base) ? '/{'.$base.'}' : '';
+		$uri = $this->getResourceUri($name, $base).$param;
 
 		return $this->get($uri, $this->getResourceAction($name, $controller, 'show', $options));
 	}
@@ -574,7 +610,8 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	 */
 	protected function addResourceEdit($name, $base, $controller, $options)
 	{
-		$uri = $this->getResourceUri($name).'/{'.$base.'}/edit';
+		$param = ($base) ? '/{'.$base.'}' : '';
+		$uri = $this->getResourceUri($name, $base).$param.'/edit';
 
 		return $this->get($uri, $this->getResourceAction($name, $controller, 'edit', $options));
 	}
@@ -606,7 +643,8 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	 */
 	protected function addPutResourceUpdate($name, $base, $controller, $options)
 	{
-		$uri = $this->getResourceUri($name).'/{'.$base.'}';
+		$param = ($base) ? '/{'.$base.'}' : '';
+		$uri = $this->getResourceUri($name, $base).$param;
 
 		return $this->put($uri, $this->getResourceAction($name, $controller, 'update', $options));
 	}
@@ -621,7 +659,8 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	 */
 	protected function addPatchResourceUpdate($name, $base, $controller)
 	{
-		$uri = $this->getResourceUri($name).'/{'.$base.'}';
+		$param = ($base) ? '/{'.$base.'}' : '';
+		$uri = $this->getResourceUri($name, $base).$param;
 
 		$this->patch($uri, $controller.'@update');
 	}
@@ -639,7 +678,8 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	{
 		$action = $this->getResourceAction($name, $controller, 'destroy', $options);
 
-		return $this->delete($this->getResourceUri($name).'/{'.$base.'}', $action);
+		$param = ($base) ? '/{'.$base.'}' : '';
+		return $this->delete($this->getResourceUri($name, $base).$param, $action);
 	}
 
 	/**
