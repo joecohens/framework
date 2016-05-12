@@ -83,13 +83,21 @@ class PasswordBrokerManager implements FactoryContract
      */
     protected function createTokenRepository(array $config)
     {
+        $class = isset($config['repository'])
+            ? $config['repository']
+            : DatabaseTokenRepository::class;
+
+        if (!class_exists($class)) {
+            throw new InvalidArgumentException("Password database token respository [{$class}] is not defined.");
+        }
+
         $key = $this->app['config']['app.key'];
 
         if (Str::startsWith($key, 'base64:')) {
             $key = base64_decode(substr($key, 7));
         }
 
-        return new DatabaseTokenRepository(
+        return new $class(
             $this->app['db']->connection(),
             $config['table'],
             $key,
